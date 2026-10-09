@@ -1,0 +1,251 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>mm demo</title>
+<!-- Scripted demo. record.mjs calls render(t) for each frame; nothing here runs on a timer. -->
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1280px; height: 800px; overflow: hidden; }
+  body {
+    background: radial-gradient(ellipse at 30% 20%, #3b4a6b 0%, #1d2333 55%, #14182246 100%), #161b27;
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    position: relative;
+  }
+  .mono { font-family: "SF Mono", Menlo, monospace; }
+
+  /* Terminal window */
+  #term {
+    position: absolute; left: 70px; top: 40px; width: 1140px; height: 640px;
+    background: #1b1d23; border-radius: 12px; overflow: hidden;
+    box-shadow: 0 30px 80px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.08);
+  }
+  .titlebar { height: 40px; background: #24262d; display: flex; align-items: center; padding-left: 16px; gap: 8px; border-bottom: 1px solid #00000066; }
+  .light { width: 12px; height: 12px; border-radius: 50%; }
+  .tabs { display: flex; gap: 6px; margin-left: 24px; height: 100%; align-items: flex-end; }
+  .tab { padding: 0 22px; height: 30px; line-height: 30px; font-size: 13px; color: #8b8f99; border-radius: 8px 8px 0 0; }
+  .tab.active { background: #1b1d23; color: #e6e6e6; }
+  .screen { position: absolute; top: 40px; left: 0; right: 0; bottom: 0; padding: 18px 24px; font-size: 13.5px; line-height: 20px; color: #d8d8d8; white-space: pre; }
+  .dim { color: #7d818c; }
+  .user { color: #9aa0ab; }
+  .accent { color: #d97757; }
+  .ok { color: #7cc48a; }
+  .line { display: block; height: 20px; }
+  .welcome { display: inline-block; border: 1px solid #d97757; border-radius: 6px; padding: 6px 14px; margin: 2px 0 10px; }
+  .sel { background: #2f5fa8; color: #fff; }
+  .inputbox { position: absolute; left: 24px; right: 24px; bottom: 34px; border: 1px solid #5a5e69; border-radius: 6px; padding: 8px 12px; height: 40px; }
+  .hint { position: absolute; left: 38px; bottom: 10px; font-size: 12px; }
+  .cursor { display: inline-block; width: 8px; height: 17px; background: #d8d8d8; vertical-align: -3px; }
+  #block { position: relative; }
+  #blockOutline { position: absolute; left: -10px; right: 300px; top: -6px; bottom: -6px; border: 2px solid #ff6b6b; border-radius: 6px; }
+  #blockTag { position: absolute; right: 300px; top: -30px; background: #ff6b6b; color: #1b1d23; font: 600 13px -apple-system, sans-serif; padding: 3px 9px; border-radius: 5px; transform: translateX(10px); }
+
+  /* Keycap toast */
+  #key { position: absolute; left: 50%; top: 300px; transform: translateX(-50%); background: rgba(30,32,38,.92); border: 1px solid rgba(255,255,255,.15); border-radius: 14px; padding: 16px 26px; color: #fff; font-size: 34px; font-weight: 600; letter-spacing: 2px; box-shadow: 0 10px 40px rgba(0,0,0,.5); }
+
+  /* Preview window */
+  #preview {
+    position: absolute; left: 90px; top: 196px; width: 1100px; height: 400px;
+    background: #ececec; border-radius: 12px; overflow: hidden;
+    box-shadow: 0 40px 100px rgba(0,0,0,.6), 0 0 0 1px rgba(0,0,0,.25);
+  }
+  #preview .titlebar { background: #e3e3e3; border-bottom: 1px solid #c8c8c8; justify-content: flex-start; }
+  #preview .ptitle { position: absolute; left: 0; right: 0; text-align: center; font-size: 13px; font-weight: 600; color: #333; pointer-events: none; }
+  #preview .canvas { position: absolute; top: 40px; left: 0; right: 0; bottom: 0; background: #fff; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+  #preview img { width: 1040px; transform-origin: 62% 50%; }
+
+  /* Caption */
+  #caption { position: absolute; left: 0; right: 0; bottom: 42px; text-align: center; color: #fff; font-size: 22px; font-weight: 600; text-shadow: 0 2px 10px rgba(0,0,0,.5); }
+  #caption .n { display: inline-block; width: 30px; height: 30px; line-height: 30px; border-radius: 50%; background: #d97757; font-size: 16px; margin-right: 10px; vertical-align: 2px; }
+
+  /* End card */
+  #end { position: absolute; inset: 0; background: #14171f; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; gap: 18px; }
+  #end h1 { font: 700 104px -apple-system, BlinkMacSystemFont, sans-serif; letter-spacing: -3px; }
+  #end p { font-size: 26px; color: #c9ccd4; }
+  #end .url { font: 20px "SF Mono", Menlo, monospace; color: #d97757; }
+</style>
+</head>
+<body>
+  <div id="term">
+    <div class="titlebar">
+      <span class="light" style="background:#ff5f57"></span>
+      <span class="light" style="background:#febc2e"></span>
+      <span class="light" style="background:#28c840"></span>
+      <div class="tabs">
+        <div class="tab" id="tab1">claude</div>
+        <div class="tab" id="tab2">zsh</div>
+      </div>
+    </div>
+    <div class="screen mono" id="claude"></div>
+    <div class="screen mono" id="shell"></div>
+  </div>
+
+  <div id="key"></div>
+
+  <div id="preview">
+    <div class="titlebar">
+      <span class="light" style="background:#ff5f57"></span>
+      <span class="light" style="background:#febc2e"></span>
+      <span class="light" style="background:#28c840"></span>
+      <div class="ptitle">mermaid-20261009-164125.png</div>
+    </div>
+    <div class="canvas"><img src="preview.png" alt=""></div>
+  </div>
+
+  <div id="caption"></div>
+
+  <div id="end">
+    <h1>mm</h1>
+    <p>Copy Mermaid. Type <span class="mono" style="color:#fff">mm</span>. See the diagram.</p>
+    <div class="url">github.com/bath/mm-mermaid</div>
+  </div>
+
+<script>
+const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const prog = (t, a, b) => clamp((t - a) / (b - a));
+const ease = x => 1 - Math.pow(1 - x, 3);
+const typed = (s, t, start, cps) => s.slice(0, Math.max(0, Math.floor((t - start) * cps)));
+
+const MERMAID = [
+  'flowchart LR',
+  '    A["Stripe sends<br/>payment_failed webhook"] --> B{"Signature valid?"}',
+  '    B -- no --> X["Return 400<br/>drop event"]',
+  '    B -- yes --> C{"Event already<br/>processed?"}',
+  '    C -- yes --> Y["Return 200<br/>no-op"]',
+  '    C -- no --> D["Store event,<br/>mark invoice past_due"]',
+  '    D --> E{"Retries left?<br/>(max 3)"}',
+  '    E -- yes --> F["Schedule retry<br/>1h → 6h → 24h"]',
+  '    F --> G["Email customer:<br/>update your card"]',
+  '    E -- no --> H["Cancel subscription,<br/>notify billing team"]',
+];
+const ASK = '/show-me the payment retry flow';
+
+// Timeline, in seconds.
+const T = {
+  typeAsk: 0.8, sendAsk: 3.0, reply: 4.0, flag: 5.6, flagEnd: 8.2,
+  select: 8.6, selectEnd: 9.8, copy: 10.0, copyEnd: 11.0,
+  newTab: 11.6, newTabEnd: 12.4, typeMm: 12.7, runMm: 13.3, done: 14.3,
+  preview: 14.4, zoom: 16.6, zoomEnd: 19.0, end: 20.4, total: 23.5,
+};
+
+const CAPTIONS = [
+  [0.0, 'Ask Claude Code to <span class="mono">/show-me</span> something'],
+  [T.reply + 0.4, 'The terminal cannot draw it, so you get raw Mermaid'],
+  [T.select, 'Select the block and copy it'],
+  [T.newTab, 'Open a new tab and type <span class="mono">mm</span>'],
+  [T.preview, 'A full-resolution PNG opens in Preview'],
+  [T.zoom, 'Zoom all you want. PNG and SVG are on your Desktop'],
+];
+
+function claudeScreen(t) {
+  const out = [];
+  const L = s => out.push(`<span class="line">${s}</span>`);
+  out.push('<div class="welcome"><span class="accent">✻</span> Welcome to Claude Code<br><span class="dim">  cwd: ~/dev/shop</span></div>');
+  L('');
+  L('<span class="user">&gt; why did a customer get charged twice after their card failed?</span>');
+  L('');
+  L('⏺ The webhook handler retried before it checked whether the event was');
+  L('  already processed. I added an idempotency check in billing/webhooks.py.');
+  L('');
+
+  let input = '';
+  if (t < T.sendAsk) {
+    input = typed(ASK, t, T.typeAsk, 16);
+  } else {
+    L(`<span class="user">&gt; ${esc(ASK)}</span>`);
+    L('');
+    if (t < T.reply) {
+      const dots = '.'.repeat(1 + Math.floor(t * 4) % 3);
+      L(`<span class="accent">✻</span> <span class="dim">Drawing${dots}</span>`);
+    } else {
+      const shown = Math.floor((t - T.reply) * 30);
+      L('⏺ Here is the retry flow after the fix:');
+      L('');
+      const block = ['mermaid', ...MERMAID].slice(0, Math.max(0, shown));
+      const selN = t >= T.select ? Math.ceil(prog(t, T.select, T.selectEnd) * block.length) : 0;
+      const rows = block.map((s, i) => {
+        const text = esc('  ' + s);
+        return `<span class="line">${i < selN ? `<span class="sel">${text}</span>` : text}</span>`;
+      });
+      const flagOn = t >= T.flag && t < T.flagEnd;
+      const flagA = flagOn ? Math.min(prog(t, T.flag, T.flag + 0.3), prog(t, T.flagEnd, T.flagEnd - 0.3)) : 0;
+      const flag = flagOn
+        ? `<div id="blockOutline" style="opacity:${flagA}"></div><div id="blockTag" style="opacity:${flagA}">not rendered</div>`
+        : '';
+      out.push(`<div id="block">${rows.join('')}${flag}</div>`);
+    }
+  }
+  const blink = Math.floor(t * 2) % 2 === 0 || (t > T.typeAsk && t < T.sendAsk);
+  const showCursor = t < T.sendAsk || t >= T.reply + 0.5;
+  return out.join('') +
+    `<div class="inputbox"><span class="dim">&gt; </span>${esc(input)}${showCursor && blink ? '<span class="cursor"></span>' : ''}</div>` +
+    `<div class="hint dim">? for shortcuts</div>`;
+}
+
+function shellScreen(t) {
+  const out = [];
+  const L = s => out.push(`<span class="line">${s}</span>`);
+  const prompt = '<span class="ok">~</span> <span class="dim">%</span> ';
+  const cmd = t < T.runMm ? typed('mm', t, T.typeMm, 8) : 'mm';
+  const cursor = (t < T.runMm && Math.floor(t * 2) % 2 === 0) || (t >= T.typeMm && t < T.runMm) ? '<span class="cursor"></span>' : '';
+  L('Last login: Fri Oct  9 16:41:02 on ttys004');
+  L(prompt + cmd + (t < T.runMm ? cursor : ''));
+  if (t >= T.done) {
+    L('/Users/you/Desktop/mermaid-20261009-164125.png');
+    L(prompt + (Math.floor(t * 2) % 2 === 0 ? '<span class="cursor"></span>' : ''));
+  }
+  return out.join('');
+}
+
+function render(t) {
+  const onShell = t >= T.newTab;
+  document.getElementById('tab1').className = 'tab' + (onShell ? '' : ' active');
+  const tab2 = document.getElementById('tab2');
+  tab2.className = 'tab' + (onShell ? ' active' : '');
+  tab2.style.display = onShell ? '' : 'none';
+  const claude = document.getElementById('claude');
+  const shell = document.getElementById('shell');
+  claude.style.display = onShell ? 'none' : '';
+  shell.style.display = onShell ? '' : 'none';
+  if (onShell) shell.innerHTML = shellScreen(t); else claude.innerHTML = claudeScreen(t);
+
+  // Keycaps
+  const key = document.getElementById('key');
+  let k = null, a = 0;
+  if (t >= T.copy && t < T.copyEnd) { k = '⌘ C'; a = Math.min(prog(t, T.copy, T.copy + .15), prog(t, T.copyEnd, T.copyEnd - .25)); }
+  if (t >= T.newTab - 0.3 && t < T.newTabEnd) { k = '⌘ T'; a = Math.min(prog(t, T.newTab - .3, T.newTab - .15), prog(t, T.newTabEnd, T.newTabEnd - .25)); }
+  key.style.display = k ? '' : 'none';
+  if (k) { key.textContent = k; key.style.opacity = a; }
+
+  // Preview window
+  const pv = document.getElementById('preview');
+  const p = ease(prog(t, T.preview, T.preview + 0.35));
+  pv.style.display = t >= T.preview ? '' : 'none';
+  pv.style.opacity = p;
+  pv.style.transform = `scale(${0.9 + 0.1 * p})`;
+  const z = 1 + 1.6 * ease(prog(t, T.zoom, T.zoomEnd));
+  pv.querySelector('img').style.transform = `scale(${z})`;
+
+  // Caption
+  let cap = 0;
+  CAPTIONS.forEach(([s], i) => { if (t >= s) cap = i; });
+  const cs = CAPTIONS[cap][0];
+  const next = CAPTIONS[cap + 1] ? CAPTIONS[cap + 1][0] : T.end;
+  const ca = Math.min(prog(t, cs, cs + 0.25), prog(t, next, next - 0.2));
+  const capEl = document.getElementById('caption');
+  capEl.innerHTML = `<span class="n">${cap + 1}</span>${CAPTIONS[cap][1]}`;
+  capEl.style.opacity = t < T.end ? ca : 0;
+
+  // End card
+  const end = document.getElementById('end');
+  end.style.display = t >= T.end ? '' : 'none';
+  end.style.opacity = ease(prog(t, T.end, T.end + 0.5));
+}
+
+window.DEMO_LENGTH = T.total;
+window.render = render;
+render(new URLSearchParams(location.search).has('t') ? +new URLSearchParams(location.search).get('t') : 0);
+</script>
+</body>
+</html>

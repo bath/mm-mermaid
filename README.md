@@ -4,6 +4,10 @@ Copy a Mermaid diagram, type `mm`, and get a full-resolution image open in Previ
 
 Made for the diagrams that [HumanLayer's `show-me` skill](https://github.com/humanlayer/skills/tree/main/plugins/show-me) draws in Claude Code, but it works with any Mermaid text.
 
+![Claude Code prints a /show-me diagram as raw Mermaid; copy it, run mm in a new tab, and the rendered PNG opens in Preview](assets/demo.gif)
+
+<sub>Simulated session. [MP4 version](assets/demo.mp4). Rebuild it with `demo/build.sh`.</sub>
+
 ## Use
 
 1. Copy a Mermaid diagram. Any of these work:

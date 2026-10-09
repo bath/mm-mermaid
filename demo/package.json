@@ -1,0 +1,10 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "./build.sh"
+  },
+  "devDependencies": {
+    "playwright": "1.63.0"
+  }
+}
