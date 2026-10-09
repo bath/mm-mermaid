@@ -1,0 +1,10 @@
+flowchart LR
+    A["Stripe sends<br/>payment_failed webhook"] --> B{"Signature valid?"}
+    B -- no --> X["Return 400<br/>drop event"]
+    B -- yes --> C{"Event already<br/>processed?"}
+    C -- yes --> Y["Return 200<br/>no-op"]
+    C -- no --> D["Store event,<br/>mark invoice past_due"]
+    D --> E{"Retries left?<br/>(max 3)"}
+    E -- yes --> F["Schedule retry<br/>1h → 6h → 24h"]
+    F --> G["Email customer:<br/>update your card"]
+    E -- no --> H["Cancel subscription,<br/>notify billing team"]
