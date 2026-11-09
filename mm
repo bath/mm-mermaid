@@ -5,6 +5,8 @@
 # Output: ~/Desktop/mermaid-<timestamp>.{svg,png}
 set -euo pipefail
 
+repo="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+
 out_dir="$HOME/Desktop"
 scale="${MM_SCALE:-4}"
 
@@ -35,8 +37,21 @@ printf '%s\n' "$clip" | awk '
   END { for (i = 1; i <= NR; i++) print substr(lines[i], min + 1) }
 ' > "$src"
 
-mmdc -q -i "$src" -o "$base.svg"
-mmdc -q -i "$src" -o "$base.png" -s "$scale" -b white
+render() {
+  mmdc -q -i "$src" -o "$base.svg" &&
+    mmdc -q -i "$src" -o "$base.png" -s "$scale" -b white
+}
+
+# A new mmdc can pin a Chrome that is not downloaded yet. Get it, then retry.
+if ! err="$(render 2>&1 >/dev/null)"; then
+  if [[ $err != *"Could not find chrome-headless-shell"* ]]; then
+    printf '%s\n' "$err" >&2
+    exit 1
+  fi
+  echo "mm: downloading the headless Chrome that mmdc needs" >&2
+  "$repo/install-browser.sh" >&2
+  render
+fi
 
 open -a Preview "$base.png"
 echo "$base.png"

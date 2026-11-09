@@ -43,7 +43,7 @@ cd mm-mermaid
 2. downloads the headless Chrome version that `mmdc` pins to `~/.cache/puppeteer` (the Homebrew formula does not include it)
 3. links `mm` into `~/.local/bin` (set `MM_BIN_DIR` to change this)
 
-Run `./install.sh` again after `brew upgrade mermaid-cli`. A new `mmdc` can pin a new Chrome, and until you do, `mm` fails with `Could not find chrome-headless-shell`.
+After `brew upgrade mermaid-cli`, a new `mmdc` can pin a new Chrome. `mm` sees the `Could not find chrome-headless-shell` error, runs `install-browser.sh`, and renders again. The first run after an upgrade is slower because of the download.
 
 ### Watch your Node version
 
